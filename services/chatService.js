@@ -49,6 +49,7 @@ const sendMessage = async (req, res, next) => {
     });
 
     const io = getIo();
+
     io.to(conversation.id.toString()).emit("receiveMessage", {
       ...message,
       conversation: {
