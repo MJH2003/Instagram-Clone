@@ -50,7 +50,7 @@ const initializeSocket = (httpServer) => {
     try {
       const userConversations = await prisma.conversation.findMany({
         where: {
-          users: { some: { id: socket.user.id } },
+          conversationUsers: { some: { userId: socket.user.id } },
         },
       });
 

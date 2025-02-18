@@ -1,34 +1,72 @@
 const { PrismaClient } = require("@prisma/client");
+const crypto = require("crypto");
 const { NotFound, BadRequest, InternalServerError } = require("../errors");
 const { getIo } = require("../socket");
 const prisma = new PrismaClient();
 
 const sendMessage = async (req, res, next) => {
   try {
-    const { recipientId, content } = req.body;
+    const { recipientId, content, conversationId } = req.body;
     const senderId = req.user.id;
 
-    if (senderId === recipientId) {
-      return next(new BadRequest("You cannot send messages to yourself."));
-    }
+    let conversation;
 
-    let conversation = await prisma.conversation.findFirst({
-      where: {
-        AND: [
-          { users: { some: { id: senderId } } },
-          { users: { some: { id: recipientId } } },
-        ],
-      },
-      include: { users: true },
-    });
-
-    if (!conversation) {
-      conversation = await prisma.conversation.create({
-        data: {
-          users: { connect: [{ id: senderId }, { id: recipientId }] },
-        },
-        include: { users: true },
+    if (conversationId) {
+      conversation = await prisma.conversation.findUnique({
+        where: { id: parseInt(conversationId, 10) },
+        include: { conversationUsers: { include: { user: true } } },
       });
+
+      if (!conversation) {
+        return next(new NotFound("Conversation not found"));
+      }
+
+      const isParticipant = conversation.conversationUsers.some(
+        (cu) => cu.user.id === senderId
+      );
+      if (!isParticipant) {
+        return next(
+          new BadRequest("You are not a participant in this conversation")
+        );
+      }
+    } else if (recipientId) {
+      if (senderId === parseInt(recipientId, 10)) {
+        return next(new BadRequest("You cannot send messages to yourself."));
+      }
+
+      conversation = await prisma.conversation.findFirst({
+        where: {
+          AND: [
+            { conversationUsers: { some: { userId: senderId } } },
+            {
+              conversationUsers: {
+                some: { userId: parseInt(recipientId, 10) },
+              },
+            },
+            { isGroup: false },
+          ],
+        },
+        include: { conversationUsers: { include: { user: true } } },
+      });
+
+      if (!conversation) {
+        conversation = await prisma.conversation.create({
+          data: {
+            isGroup: false,
+            conversationUsers: {
+              create: [
+                { user: { connect: { id: senderId } } },
+                { user: { connect: { id: parseInt(recipientId, 10) } } },
+              ],
+            },
+          },
+          include: { conversationUsers: { include: { user: true } } },
+        });
+      }
+    } else {
+      return next(
+        new BadRequest("Either recipientId or conversationId must be provided")
+      );
     }
 
     const message = await prisma.message.create({
@@ -49,12 +87,15 @@ const sendMessage = async (req, res, next) => {
     });
 
     const io = getIo();
+    const participants = conversation.conversationUsers.map((cu) => cu.user);
 
     io.to(conversation.id.toString()).emit("receiveMessage", {
       ...message,
       conversation: {
         id: conversation.id,
-        users: conversation.users,
+        name: conversation.name,
+        isGroup: conversation.isGroup,
+        users: participants,
       },
     });
 
@@ -74,12 +115,14 @@ const getMessages = async (req, res, next) => {
 
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
-      include: { users: true },
+      include: { conversationUsers: { include: { user: true } } },
     });
 
     if (!conversation) return next(new NotFound("Conversation Not Found"));
 
-    const isParticipant = conversation.users.some((user) => user.id === userId);
+    const isParticipant = conversation.conversationUsers.some(
+      (cu) => cu.user.id === userId
+    );
     if (!isParticipant) {
       return next(
         new BadRequest("You are not a participant in this conversation.")
@@ -109,25 +152,21 @@ const getMessages = async (req, res, next) => {
   }
 };
 
-const getConversations = async (req, res) => {
+const getConversations = async (req, res, next) => {
   const userId = req.user.id;
   try {
     const conversations = await prisma.conversation.findMany({
       where: {
-        users: { some: { id: userId } },
+        conversationUsers: { some: { userId } },
       },
       include: {
-        users: true,
+        conversationUsers: { include: { user: true } },
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
           include: {
             sender: {
-              select: {
-                id: true,
-                username: true,
-                role: true,
-              },
+              select: { id: true, username: true, role: true },
             },
           },
         },
@@ -136,7 +175,66 @@ const getConversations = async (req, res) => {
 
     res.status(200).json(conversations);
   } catch (error) {
-    throw new InternalServerError("Failed to fetch conversations");
+    next(new InternalServerError("Failed to fetch conversations"));
+  }
+};
+
+const createGroup = async (req, res, next) => {
+  try {
+    const { name } = req.body;
+    const creatorId = req.user.id;
+
+    const joinCode = crypto.randomBytes(4).toString("hex");
+
+    const group = await prisma.conversation.create({
+      data: {
+        name,
+        isGroup: true,
+        joinCode,
+        conversationUsers: {
+          create: [{ user: { connect: { id: creatorId } } }],
+        },
+      },
+      include: { conversationUsers: { include: { user: true } } },
+    });
+
+    res.status(201).json(group);
+  } catch (error) {
+    next(error);
+  }
+};
+
+const joinGroup = async (req, res, next) => {
+  try {
+    const { joinCode } = req.body;
+    const userId = req.user.id;
+
+    const conversation = await prisma.conversation.findUnique({
+      where: { joinCode },
+      include: { conversationUsers: true },
+    });
+
+    if (!conversation) {
+      return next(new NotFound("Group not found"));
+    }
+
+    const alreadyJoined = conversation.conversationUsers.some(
+      (cu) => cu.userId === userId
+    );
+    if (alreadyJoined) {
+      return next(new BadRequest("You have already joined this group"));
+    }
+
+    await prisma.conversationUser.create({
+      data: {
+        userId,
+        conversationId: conversation.id,
+      },
+    });
+
+    res.status(200).json({ message: "Successfully joined the group" });
+  } catch (error) {
+    next(error);
   }
 };
 
@@ -144,4 +242,6 @@ module.exports = {
   sendMessage,
   getMessages,
   getConversations,
+  createGroup,
+  joinGroup,
 };

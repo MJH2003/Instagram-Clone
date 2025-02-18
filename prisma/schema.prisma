@@ -7,60 +7,74 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model users {
-  id            Int            @id @default(autoincrement())
-  username      String         @unique @db.VarChar(255)
-  password      String         @db.VarChar(255)
-  email         String?        @unique @db.VarChar(255)
-  role          String?        @db.VarChar(255)
-  posts         post[]
-  comment       comment[]
-  followers     follows[]      @relation("following")
-  following     follows[]      @relation("follower")
-  conversations conversation[]
-  messages      message[]
+model Users {
+  id                Int                @id @default(autoincrement())
+  username          String             @unique @db.VarChar(255)
+  password          String             @db.VarChar(255)
+  email             String?            @unique @db.VarChar(255)
+  role              String?            @db.VarChar(255)
+  posts             Post[]
+  comments          Comment[]
+  followers         Follows[]          @relation("following")
+  following         Follows[]          @relation("follower")
+  conversationUsers ConversationUser[]
+  messages          Message[]
 }
 
-model follows {
-  follower    users @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
-  followerId  Int
-  following   users @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
-  followingId Int
-
-  @@id([followerId, followingId])
+model Conversation {
+  id                Int                @id @default(autoincrement())
+  name              String?
+  isGroup           Boolean            @default(false)
+  joinCode          String?            @unique
+  messages          Message[]
+  createdAt         DateTime           @default(now())
+  conversationUsers ConversationUser[]
 }
 
-model post {
-  id        Int       @id @default(autoincrement())
-  caption   String    @db.Text
-  userid    Int       @db.Int
-  imageUrl  String?   @db.Text
-  createdBy users     @relation(fields: [userid], references: [id])
-  comments  comment[]
+model ConversationUser {
+  userId         Int
+  conversationId Int
+  joinedAt       DateTime @default(now())
+
+  user         Users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@id([userId, conversationId])
 }
 
-model comment {
-  id     Int    @id @default(autoincrement())
-  body   String @db.Text
-  userid Int    @db.Int
-  postid Int    @db.Int
-  author users  @relation(fields: [userid], references: [id])
-  post   post   @relation(fields: [postid], references: [id])
-}
-
-model conversation {
-  id        Int       @id @default(autoincrement())
-  users     users[]
-  messages  message[]
-  createdAt DateTime  @default(now())
-}
-
-model message {
+model Message {
   id             Int          @id @default(autoincrement())
   content        String       @db.Text
   senderId       Int
   conversationId Int
-  sender         users        @relation(fields: [senderId], references: [id])
-  conversation   conversation @relation(fields: [conversationId], references: [id])
+  sender         Users        @relation(fields: [senderId], references: [id])
+  conversation   Conversation @relation(fields: [conversationId], references: [id])
   createdAt      DateTime     @default(now())
+}
+
+model Post {
+  id        Int       @id @default(autoincrement())
+  caption   String    @db.Text
+  userid    Int       @db.Int
+  imageUrl  String?   @db.Text
+  createdBy Users     @relation(fields: [userid], references: [id])
+  comments  Comment[]
+}
+
+model Comment {
+  id     Int    @id @default(autoincrement())
+  body   String @db.Text
+  userid Int    @db.Int
+  postid Int    @db.Int
+  author Users  @relation(fields: [userid], references: [id])
+  post   Post   @relation(fields: [postid], references: [id])
+}
+
+model Follows {
+  follower    Users @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followerId  Int
+  following   Users @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  followingId Int
+
+  @@id([followerId, followingId])
 }
