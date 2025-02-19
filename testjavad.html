@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Chat App</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        background-color: #f7f7f7;
+      }
+      .container {
+        width: 80%;
+        max-width: 500px;
+        background-color: white;
+        border-radius: 8px;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        padding: 20px;
+      }
+      h2 {
+        text-align: center;
+        margin-bottom: 20px;
+      }
+      input[type="text"],
+      input[type="password"],
+      button {
+        width: 100%;
+        padding: 10px;
+        margin: 10px 0;
+        border: 1px solid #ccc;
+        border-radius: 5px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        border: none;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      .chat-box {
+        margin-top: 20px;
+        height: 300px;
+        border: 1px solid #ddd;
+        padding: 10px;
+        overflow-y: auto;
+        background-color: #f0f0f0;
+        border-radius: 5px;
+      }
+      .message-input {
+        width: 80%;
+      }
+      .send-btn {
+        width: 18%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h2>Join Group and Chat</h2>
+
+      <!-- User JWT and Group Code Entry Form -->
+      <div id="login-section">
+        <input type="text" id="jwt-token" placeholder="Enter JWT Token" />
+        <input type="text" id="group-code" placeholder="Enter Group Code" />
+        <button onclick="joinGroup()">Join Group</button>
+      </div>
+
+      <!-- Chat Window -->
+      <div id="chat-section" style="display: none">
+        <div class="chat-box" id="chat-box"></div>
+        <input
+          type="text"
+          class="message-input"
+          id="message-input"
+          placeholder="Type a message..."
+        />
+        <button class="send-btn" onclick="sendMessage()">Send</button>
+      </div>
+    </div>
+
+    <!-- Socket.io Script -->
+    <script src="https://cdn.socket.io/4.1.3/socket.io.min.js"></script>
+    <script>
+      let socket;
+      let groupId;
+
+      // Function to join the group
+      function joinGroup() {
+        const jwtToken = document.getElementById("jwt-token").value;
+        const groupCode = document.getElementById("group-code").value;
+
+        if (!jwtToken || !groupCode) {
+          alert("Please enter both JWT Token and Group Code");
+          return;
+        }
+
+        // Initialize socket connection
+        socket = io("http://localhost:8080", {
+          auth: { token: jwtToken },
+        });
+
+        socket.on("connect", () => {
+          // Send a request to join the group using the group code
+          socket.emit("joinGroup", { joinCode: groupCode }, (response) => {
+            if (response.error) {
+              alert(response.error);
+            } else {
+              groupId = response.groupId;
+              document.getElementById("login-section").style.display = "none";
+              document.getElementById("chat-section").style.display = "block";
+            }
+          });
+        });
+
+        socket.on("error", (error) => {
+          alert("Error: " + error);
+        });
+      }
+
+      // Function to send message
+      function sendMessage() {
+        const messageInput = document.getElementById("message-input").value;
+
+        if (!messageInput) {
+          alert("Please enter a message.");
+          return;
+        }
+
+        socket.emit("sendMessage", { groupId, message: messageInput });
+
+        // Display the message in the chat
+        addMessageToChat("You", messageInput);
+        document.getElementById("message-input").value = "";
+      }
+
+      // Listen for new messages from other users
+      socket.on("receiveMessage", (message) => {
+        addMessageToChat(message.sender.username, message.content);
+      });
+
+      // Function to display messages in chat window
+      function addMessageToChat(sender, message) {
+        const chatBox = document.getElementById("chat-box");
+        const messageElement = document.createElement("div");
+        messageElement.textContent = `${sender}: ${message}`;
+        chatBox.appendChild(messageElement);
+        chatBox.scrollTop = chatBox.scrollHeight;
+      }
+    </script>
+  </body>
+</html>

@@ -20,6 +20,9 @@ app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
 app.use("/api", routers);
 
+const cors = require("cors");
+app.use(cors());
+
 // Error handling
 app.use((err, req, res, next) => {
   if (err instanceof HttpError) {

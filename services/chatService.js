@@ -225,7 +225,7 @@ const joinGroup = async (req, res, next) => {
       return next(new BadRequest("You have already joined this group"));
     }
 
-    await prisma.conversationUser.create({
+    await prisma.conversation.create({
       data: {
         userId,
         conversationId: conversation.id,
