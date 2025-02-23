@@ -25,7 +25,7 @@ const initializeSocket = (httpServer) => {
       }
 
       const decoded = jwt.verify(token, SECRET_KEY);
-      const user = await prisma.users.findUnique({
+      const user = await prisma.user.findUnique({
         where: { id: decoded.id },
         select: { id: true, username: true, role: true },
       });

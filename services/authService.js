@@ -15,7 +15,7 @@ const login = async (req, res, next) => {
       throw new BadRequest("Username and password are required");
     }
 
-    const user = await prisma.users.findUnique({ where: { username } });
+    const user = await prisma.user.findUnique({ where: { username } });
     if (!user || !(await bcrypt.compare(password, user.password))) {
       throw new Unauthorized("Invalid username or password");
     }
@@ -40,7 +40,7 @@ const signup = async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    const newUser = await prisma.users.create({
+    const newUser = await prisma.user.create({
       data: { username, email, password: hashedPassword, role },
     });
 

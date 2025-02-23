@@ -14,7 +14,7 @@ const authToken = async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, SECRET_KEY);
-    const user = await prisma.users.findUnique({ where: { id: decoded.id } });
+    const user = await prisma.user.findUnique({ where: { id: decoded.id } });
 
     if (!user) {
       return next(new Unauthorized("User not found"));

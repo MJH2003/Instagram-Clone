@@ -6,11 +6,12 @@ const {
   BadRequest,
 } = require("../errors");
 const emitter = require("../eventEmitter/eventEmitter");
+
 const prisma = new PrismaClient();
 
 const getAllUsers = async (req, res, next) => {
   try {
-    const users = await prisma.users.findMany({
+    const users = await prisma.user.findMany({
       select: {
         id: true,
         username: true,
@@ -29,7 +30,7 @@ const getAllUsers = async (req, res, next) => {
 
 const getUserById = async (req, res, next) => {
   try {
-    const user = await prisma.users.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: req.foundUser.id },
       select: {
         id: true,
@@ -50,7 +51,7 @@ const getUserById = async (req, res, next) => {
 
 const updateUser = async (req, res, next) => {
   try {
-    const updatedUser = await prisma.users.update({
+    const updatedUser = await prisma.user.update({
       where: { id: req.foundUser.id },
       data: req.body,
     });
@@ -67,7 +68,7 @@ const updateUser = async (req, res, next) => {
 
 const deleteUser = async (req, res, next) => {
   try {
-    await prisma.users.delete({
+    await prisma.user.delete({
       where: { id: req.foundUser.id },
     });
 
@@ -90,7 +91,7 @@ const followUser = async (req, res, next) => {
   }
 
   try {
-    const userToFollow = await prisma.users.findUnique({
+    const userToFollow = await prisma.user.findUnique({
       where: { id: followingId },
     });
 
@@ -98,7 +99,7 @@ const followUser = async (req, res, next) => {
       return next(new NotFound("User to follow not found"));
     }
 
-    const existingFollow = await prisma.follows.findUnique({
+    const existingFollow = await prisma.follow.findUnique({
       where: {
         followerId_followingId: { followerId, followingId },
       },
@@ -108,7 +109,7 @@ const followUser = async (req, res, next) => {
       return next(new BadRequest("You are already following this user."));
     }
 
-    await prisma.follows.create({
+    await prisma.follow.create({
       data: {
         followerId,
         followingId,
@@ -134,7 +135,7 @@ const unfollowUser = async (req, res, next) => {
   }
 
   try {
-    await prisma.follows.delete({
+    await prisma.follow.delete({
       where: {
         followerId_followingId: { followerId, followingId },
       },
@@ -152,7 +153,7 @@ const getFollowers = async (req, res, next) => {
   const userId = parseInt(req.params.id);
 
   try {
-    const followers = await prisma.follows.findMany({
+    const followers = await prisma.follow.findMany({
       where: { followingId: userId },
       select: {
         follower: {
@@ -177,7 +178,7 @@ const getFollowers = async (req, res, next) => {
 };
 
 const uId = async (iddd) => {
-  const user = await prisma.users.findUnique({
+  const user = await prisma.user.findUnique({
     where: { id: iddd },
     select: {
       username: true,

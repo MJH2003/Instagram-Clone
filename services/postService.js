@@ -1,6 +1,7 @@
 const { PrismaClient } = require("@prisma/client");
 const { NotFound, Unauthorized, InternalServerError } = require("../errors");
 const emitter = require("../eventEmitter/eventEmitter");
+
 const prisma = new PrismaClient();
 
 const createPost = async (req, res, next) => {
@@ -9,8 +10,9 @@ const createPost = async (req, res, next) => {
     const postData = {
       caption: req.body.caption,
       imageUrl: imagePaths,
-      userid: req.user.id,
+      userId: req.user.id, // Fixed field name
     };
+
     const newPost = await prisma.post.create({ data: postData });
 
     res.status(201).json({

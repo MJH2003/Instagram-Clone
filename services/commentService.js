@@ -8,8 +8,8 @@ const createComment = async (req, res, next) => {
     const newComment = await prisma.comment.create({
       data: {
         body: req.data.body,
-        userid: req.user.id,
-        postid: parseInt(req.data.postid),
+        userId: req.user.id,
+        postId: parseInt(req.data.postId),
       },
     });
 
@@ -47,7 +47,7 @@ const deleteComment = async (req, res, next) => {
 
     res
       .status(200)
-      .json({ message: `Post with ID ${commentId} deleted successfully` });
+      .json({ message: `Comment with ID ${commentId} deleted successfully` });
   } catch (error) {
     next(new InternalServerError());
   }

@@ -7,7 +7,7 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model Users {
+model User {
   id                Int                @id @default(autoincrement())
   username          String             @unique @db.VarChar(255)
   password          String             @db.VarChar(255)
@@ -15,8 +15,8 @@ model Users {
   role              String?            @db.VarChar(255)
   posts             Post[]
   comments          Comment[]
-  followers         Follows[]          @relation("following")
-  following         Follows[]          @relation("follower")
+  followers         Follow[]           @relation("following")
+  following         Follow[]           @relation("follower")
   conversationUsers ConversationUser[]
   messages          Message[]
 }
@@ -36,7 +36,7 @@ model ConversationUser {
   conversationId Int
   joinedAt       DateTime @default(now())
 
-  user         Users        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@id([userId, conversationId])
@@ -47,7 +47,7 @@ model Message {
   content        String       @db.Text
   senderId       Int
   conversationId Int
-  sender         Users        @relation(fields: [senderId], references: [id])
+  sender         User         @relation(fields: [senderId], references: [id])
   conversation   Conversation @relation(fields: [conversationId], references: [id])
   createdAt      DateTime     @default(now())
 }
@@ -55,25 +55,25 @@ model Message {
 model Post {
   id        Int       @id @default(autoincrement())
   caption   String    @db.Text
-  userid    Int       @db.Int
+  userId    Int       @db.Int
   imageUrl  String?   @db.Text
-  createdBy Users     @relation(fields: [userid], references: [id])
+  createdBy User      @relation(fields: [userId], references: [id])
   comments  Comment[]
 }
 
 model Comment {
   id     Int    @id @default(autoincrement())
   body   String @db.Text
-  userid Int    @db.Int
-  postid Int    @db.Int
-  author Users  @relation(fields: [userid], references: [id])
-  post   Post   @relation(fields: [postid], references: [id])
+  userId Int    @db.Int
+  postId Int    @db.Int
+  author User   @relation(fields: [userId], references: [id])
+  post   Post   @relation(fields: [postId], references: [id])
 }
 
-model Follows {
-  follower    Users @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+model Follow {
+  follower    User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
   followerId  Int
-  following   Users @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
+  following   User @relation("following", fields: [followingId], references: [id], onDelete: Cascade)
   followingId Int
 
   @@id([followerId, followingId])

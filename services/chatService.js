@@ -12,7 +12,7 @@ const sendMessage = async (req, res, next) => {
     let conversation;
 
     if (conversationId) {
-      conversation = await prisma.conversation.findUnique({
+      conversation = await prisma.conversations.findUnique({
         where: { id: parseInt(conversationId, 10) },
         include: { conversationUsers: { include: { user: true } } },
       });
@@ -34,7 +34,7 @@ const sendMessage = async (req, res, next) => {
         return next(new BadRequest("You cannot send messages to yourself."));
       }
 
-      conversation = await prisma.conversation.findFirst({
+      conversation = await prisma.conversations.findFirst({
         where: {
           AND: [
             { conversationUsers: { some: { userId: senderId } } },
@@ -50,7 +50,7 @@ const sendMessage = async (req, res, next) => {
       });
 
       if (!conversation) {
-        conversation = await prisma.conversation.create({
+        conversation = await prisma.conversations.create({
           data: {
             isGroup: false,
             conversationUsers: {
@@ -69,7 +69,7 @@ const sendMessage = async (req, res, next) => {
       );
     }
 
-    const message = await prisma.message.create({
+    const message = await prisma.messages.create({
       data: {
         content,
         senderId,
@@ -113,7 +113,7 @@ const getMessages = async (req, res, next) => {
     const conversationId = parseInt(req.params.conversationId, 10);
     const userId = req.user.id;
 
-    const conversation = await prisma.conversation.findUnique({
+    const conversation = await prisma.conversations.findUnique({
       where: { id: conversationId },
       include: { conversationUsers: { include: { user: true } } },
     });
@@ -129,7 +129,7 @@ const getMessages = async (req, res, next) => {
       );
     }
 
-    const messages = await prisma.message.findMany({
+    const messages = await prisma.messages.findMany({
       where: { conversationId },
       orderBy: { createdAt: "asc" },
       include: {
@@ -155,7 +155,7 @@ const getMessages = async (req, res, next) => {
 const getConversations = async (req, res, next) => {
   const userId = req.user.id;
   try {
-    const conversations = await prisma.conversation.findMany({
+    const conversations = await prisma.conversations.findMany({
       where: {
         conversationUsers: { some: { userId } },
       },
@@ -186,7 +186,7 @@ const createGroup = async (req, res, next) => {
 
     const joinCode = crypto.randomBytes(4).toString("hex");
 
-    const group = await prisma.conversation.create({
+    const group = await prisma.conversations.create({
       data: {
         name,
         isGroup: true,
@@ -209,7 +209,7 @@ const joinGroup = async (req, res, next) => {
     const { joinCode } = req.body;
     const userId = req.user.id;
 
-    const conversation = await prisma.conversation.findUnique({
+    const conversation = await prisma.conversations.findUnique({
       where: { joinCode },
       include: { conversationUsers: true },
     });
@@ -225,7 +225,7 @@ const joinGroup = async (req, res, next) => {
       return next(new BadRequest("You have already joined this group"));
     }
 
-    await prisma.conversation.create({
+    await prisma.conversationUsers.create({
       data: {
         userId,
         conversationId: conversation.id,

@@ -16,7 +16,7 @@ const findUser = async (req, res, next) => {
       return next(new BadRequest("Invalid user ID"));
     }
 
-    const user = await prisma.users.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
     });
 
