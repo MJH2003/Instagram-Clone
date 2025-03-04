@@ -1,3 +1,5 @@
+websocket.js:
+
 const WebSocket = require("ws");
 const jwt = require("jsonwebtoken");
 const { PrismaClient } = require("@prisma/client");
@@ -87,3 +89,113 @@ function send(recipientId, message) {
 }
 
 module.exports = { initializeWebSocket, send };
+
+
+
+app.js:
+
+const { PrismaClient } = require("@prisma/client");
+const {
+  HttpError,
+  NotFound,
+  Unauthorized,
+  InternalServerError,
+  BadRequest,
+} = require("./errors");
+const routers = require("./routers");
+const express = require("express");
+require("express-async-errors");
+const path = require("path");
+const app = express();
+const prisma = new PrismaClient();
+app.use(express.json());
+
+app.use("/uploads", express.static(path.join(__dirname, "uploads")));
+
+//Routers
+
+app.use("/api", routers);
+
+const cors = require("cors");
+app.use(cors());
+
+// Error handling
+app.use((err, req, res, next) => {
+  if (err instanceof HttpError) {
+    res.status(err.status).json(err.toJson());
+  } else {
+    console.error(err);
+    const internalError = new InternalServerError("Something went wrong");
+    res.status(internalError.status).json(internalError.toJson());
+  }
+});
+
+module.exports = app;
+
+
+server.js:
+
+const app = require("./app");
+const http = require("http");
+const { initializeSocket } = require("./socket");
+const { initializeWebSocket } = require("./websocket");
+
+const PORT = 8080;
+
+const httpServer = http.createServer(app);
+
+const io = initializeSocket(httpServer);
+initializeWebSocket(httpServer);
+
+httpServer.listen(PORT, () => {
+  console.log(`Server is running on http://localhost:${PORT}`);
+});
+
+module.exports = { app };
+
+/routers
+
+chat.js:
+
+const express = require("express");
+const authenticate = require("../middlewares/authenticate");
+// const {
+//   sendMessage,
+//   getMessages,
+//   getConversations,
+//   createGroup,
+//   joinGroup,
+// } = require("../services/chatService");
+const { send } = require("../websocket");
+
+const router = express.Router();
+
+// router.post("/message", authenticate, send);
+// router.get("/:conversationId/messages", authenticate, getMessages);
+// router.get("/", authenticate, getConversations);
+// router.post("/group", authenticate, createGroup);
+// router.post("/group/join", authenticate, joinGroup);
+
+router.post("/send", (req, res) => {
+  const { recipientId, content } = req.body;
+
+  if (!recipientId || !content) {
+    return res
+      .status(400)
+      .json({ error: "recipientId and content are required" });
+  }
+
+  const messagePayload = {
+    sender: "Server",
+    content,
+  };
+
+  const sent = send(recipientId, messagePayload);
+  if (sent) {
+    res.json({ message: "Message sent successfully" });
+  } else {
+    res.status(404).json({ error: "Recipient not online" });
+  }
+});
+
+module.exports = router;
