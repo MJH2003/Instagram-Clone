@@ -8,6 +8,8 @@ const {
 } = require("./errors");
 const routers = require("./routers");
 const express = require("express");
+const expressWs = require("express-ws")(express());
+const wss = expressWs.app;
 require("express-async-errors");
 const path = require("path");
 const app = express();
@@ -16,6 +18,8 @@ app.use(express.json());
 
 app.use("/uploads", express.static(path.join(__dirname, "uploads")));
 
+const { handleWebSocketConnection } = require("./websocket");
+wss.ws("/ws1", handleWebSocketConnection);
 //Routers
 
 app.use("/api", routers);

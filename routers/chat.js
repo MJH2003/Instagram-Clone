@@ -1,21 +1,21 @@
 const express = require("express");
 const authenticate = require("../middlewares/authenticate");
-// const {
-//   sendMessage,
-//   getMessages,
-//   getConversations,
-//   createGroup,
-//   joinGroup,
-// } = require("../services/chatService");
+const {
+  sendMessage,
+  getMessages,
+  getConversations,
+  createGroup,
+  joinGroup,
+} = require("../services/chatService");
 const { send } = require("../websocket");
 
 const router = express.Router();
 
-// router.post("/message", authenticate, send);
-// router.get("/:conversationId/messages", authenticate, getMessages);
-// router.get("/", authenticate, getConversations);
-// router.post("/group", authenticate, createGroup);
-// router.post("/group/join", authenticate, joinGroup);
+router.post("/message", authenticate, sendMessage);
+router.get("/:conversationId/messages", authenticate, getMessages);
+router.get("/", authenticate, getConversations);
+router.post("/group", authenticate, createGroup);
+router.post("/group/join", authenticate, joinGroup);
 
 router.post("/send", (req, res) => {
   const { recipientId, content } = req.body;
@@ -27,7 +27,7 @@ router.post("/send", (req, res) => {
   }
 
   const messagePayload = {
-    sender: "Server",
+    sender: "server",
     content,
   };
 
